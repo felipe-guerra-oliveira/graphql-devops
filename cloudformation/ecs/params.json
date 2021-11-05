@@ -1,0 +1,5 @@
+[
+    {"ParameterKey": "ECSClusterName",                        "ParameterValue": "graphql-ecs-cluster"},
+    {"ParameterKey": "ECSClusterService",                     "ParameterValue": "graphql-backend-service"},
+    {"ParameterKey": "GraphQLALBName",                        "ParameterValue": "graphql-load-balancer"}
+]

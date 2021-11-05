@@ -1,0 +1,173 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Template CF para construir a estrutura básica de uma VPC
+Parameters:
+  VPCName:
+    Type: String
+
+  CidrBlock:
+    Type: String
+    Default: 10.0.0.0/16
+
+  EnableDnsHostnames:
+    Type: String
+    Default: "true"
+
+  EnableDnsSupport:
+    Type: String
+    Default: "true"
+
+  InstanceTenancy:
+    Type: String
+    Default: "default"
+
+  SubnetPublicaAssignIpv6:
+    Type: String
+    Default: "false"
+
+  SubnetPublicaAZ:
+    Type: String
+    Default: "A"
+
+  SubnetPublicaCidrBlock:
+    Type: String
+    Default: "10.0.0.1/22"
+
+  SubnetPrivada1CidrBlock:
+    Type: String
+
+  SubnetPrivada2CidrBlock:
+    Type: String
+
+  SubnetPublicaPublicIpOnLaunch:
+    Type: String
+    Default: "true"
+
+  EC2SecurityGroupName:
+    Type: String
+
+  EC2SecurityGroupIP:
+    Type: String
+    Default: "0.0.0.0/0"
+
+Resources:
+  MinhaVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref CidrBlock
+      EnableDnsHostnames: !Ref EnableDnsHostnames
+      EnableDnsSupport: !Ref EnableDnsSupport
+      InstanceTenancy: !Ref InstanceTenancy
+      Tags:
+        - Key: Name
+          Value: !Ref VPCName
+        - Key: Project
+          Value: GraphQL
+
+  SubnetPrivadaAZ1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1a
+      CidrBlock: !Ref SubnetPrivada1CidrBlock
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref MinhaVPC
+      Tags:
+        - Key: Project
+          Value: GraphQL
+          Key: Name
+          Value: !Sub "subnet-privada-${VPCName}-A"
+
+  SubnetPrivadaAZ2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: us-east-1c
+      CidrBlock: !Ref SubnetPrivada2CidrBlock
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref MinhaVPC
+      Tags:
+        - Key: Project
+          Value: GraphQL
+          Key: Name
+          Value: !Sub "subnet-privada-${VPCName}-C"
+
+  MinhaSubnetPublica:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Ref SubnetPublicaAZ
+      CidrBlock: !Ref SubnetPublicaCidrBlock
+      MapPublicIpOnLaunch: !Ref SubnetPublicaPublicIpOnLaunch
+      VpcId: !Ref MinhaVPC
+      Tags:
+        - Key: Project
+          Value: GraphQL
+          Key: Name
+          Value: !Sub "subnet-publica-${VPCName}-${SubnetPublicaAZ}"
+
+  MeuInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Project
+          Value: GraphQL
+        - Key: Name
+          Value: !Sub "InternetGateway-${VPCName}"
+
+  MeuInternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MinhaVPC
+      InternetGatewayId: !Ref MeuInternetGateway
+
+  RouteTableSubnetPublica:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MinhaVPC
+      Tags:
+        - Key: Project
+          Value: GraphQL
+        - Key: Name
+          Value: !Sub "rtb-subnet-publica-${VPCName}-${SubnetPublicaAZ}"
+
+  RouteSubnetPublicaIG:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref MeuInternetGateway
+      RouteTableId: !Ref RouteTableSubnetPublica
+
+  MinhaSubnetPublicaRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTableSubnetPublica
+      SubnetId: !Ref MinhaSubnetPublica
+
+  #Permite conexão via SSH para um determinado IP
+  # MinhaPrimeiraInstanciaSG:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     VpcId: !Ref MinhaVPC
+  #     GroupName: !Ref EC2SecurityGroupName
+  #     GroupDescription: "Permite conexao via SSH para um determinado IP"
+  #     SecurityGroupIngress:
+  #       - CidrIp: !Ref EC2SecurityGroupIP
+  #         FromPort: 22
+  #         ToPort: 22
+  #         IpProtocol: tcp
+  #     Tags:
+  #       - Key: Project
+  #         Value: POC
+  #       - Key: Name
+  #         Value: !Sub "sg-allow-ssh-access-${VPCName}-${AWS::Region}"
+Outputs:
+  SubnetPrivadaA:
+    Description: Exports the subnet ID
+    Value: !Ref SubnetPrivadaAZ1
+    Export:
+      Name: SubnetPrivadaA
+
+  SubnetPrivadaC:
+    Description: Exports the subnet ID
+    Value: !Ref SubnetPrivadaAZ2
+    Export:
+      Name: SubnetPrivadaB

@@ -1,0 +1,6 @@
+aws cloudformation create-stack --stack-name graphql-project-ecs \
+  --template-body file://cloudformation.yml \
+  --parameters file://params.json \
+  --on-failure DELETE \
+  --profile devops \
+  --region us-east-1

@@ -1,0 +1,79 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Template CF para construir a infraestrura
+  do ECS Cluster
+Parameters:
+  ECSClusterName:
+    Type: String
+
+  ECSClusterService:
+    Type: String
+
+  GraphQLALBName:
+    Type: String
+
+Resources:
+  ECSCluster:
+    Type: 'AWS::ECS::Cluster'
+    Properties:
+      ClusterName: !Ref ECSClusterName
+      CapacityProviders:
+        - FARGATE
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: Project
+          Value: GraphQL
+
+  GraphQLAppLoadBalancing:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Ref GraphQLALBName
+      Type: application
+      Scheme: internal
+      IpAddressType: ipv4
+      Subnets:
+        - !ImportValue SubnetPrivadaA
+        - !ImportValue SubnetPrivadaB
+      Tags:
+        - Key: Project
+          Value: GraphQL
+
+  GraphQLALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref GraphQLAppLoadBalancing
+      Protocol: HTTP
+      Port: 80
+      DefaultActions:
+        - Type: redirect
+          Order: 50000
+          RedirectConfig:
+            StatusCode: HTTP_301
+            Protocol: HTTP
+            Port: "8080"
+            Host: "#{host}"
+            Path: "/#{path}"
+            Query: "#{query}"
+
+  GraphQLClusterService:
+    Type: AWS::ECS::Service
+    Properties:
+      ServiceName: !Ref ECSClusterService
+      LaunchType: FARGATE
+      PlatformVersion: "1.4.0"
+      Cluster: !Ref ECSCluster
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 30
+      NetworkConfiguration:
+        AwsVpcConfiguration:
+          AssignPublicIp: DISABLED
+          Subnets:
+          SecurityGroups:
+
+Outputs:
+  ECSClusterArn:
+    Description: Exports the Arn value of the ECS Cluster
+    Value: !GetAtt ECSCluster.Arn

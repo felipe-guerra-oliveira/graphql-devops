@@ -1,0 +1,15 @@
+[
+    {"ParameterKey": "VPCName",                        "ParameterValue": "vpc-SRE"},
+    {"ParameterKey": "CidrBlock",                      "ParameterValue": "10.0.0.1/16"},
+    {"ParameterKey": "EnableDnsHostnames",             "ParameterValue": "true"},
+    {"ParameterKey": "EnableDnsSupport",               "ParameterValue": "true"},
+    {"ParameterKey": "InstanceTenancy",                "ParameterValue": "default"},
+    {"ParameterKey": "SubnetPublicaAssignIpv6",        "ParameterValue": "false"},
+    {"ParameterKey": "SubnetPublicaAZ",                "ParameterValue": "us-east-1a"},
+    {"ParameterKey": "SubnetPublicaCidrBlock",         "ParameterValue": "10.0.0.1/24"},
+    {"ParameterKey": "SubnetPrivada1CidrBlock",        "ParameterValue": "10.0.10.1/24"},
+    {"ParameterKey": "SubnetPrivada2CidrBlock",        "ParameterValue": "10.0.20.1/24"},
+    {"ParameterKey": "SubnetPublicaPublicIpOnLaunch",  "ParameterValue": "false"},
+    {"ParameterKey": "EC2SecurityGroupName",           "ParameterValue": "SSHTrafficAllowedSG"},
+    {"ParameterKey": "EC2SecurityGroupIP",             "ParameterValue": "189.120.78.248/32"}
+  ]
