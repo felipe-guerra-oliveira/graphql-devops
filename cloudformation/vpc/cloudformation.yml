@@ -142,24 +142,13 @@ Resources:
       RouteTableId: !Ref RouteTableSubnetPublica
       SubnetId: !Ref MinhaSubnetPublica
 
-  #Permite conexão via SSH para um determinado IP
-  # MinhaPrimeiraInstanciaSG:
-  #   Type: AWS::EC2::SecurityGroup
-  #   Properties:
-  #     VpcId: !Ref MinhaVPC
-  #     GroupName: !Ref EC2SecurityGroupName
-  #     GroupDescription: "Permite conexao via SSH para um determinado IP"
-  #     SecurityGroupIngress:
-  #       - CidrIp: !Ref EC2SecurityGroupIP
-  #         FromPort: 22
-  #         ToPort: 22
-  #         IpProtocol: tcp
-  #     Tags:
-  #       - Key: Project
-  #         Value: POC
-  #       - Key: Name
-  #         Value: !Sub "sg-allow-ssh-access-${VPCName}-${AWS::Region}"
 Outputs:
+  MinhaVPC:
+    Description: Exports vpc-id for general purpose
+    Value: !Ref MinhaVPC
+    Export:
+      Name: MinhaVPC
+
   SubnetPrivadaA:
     Description: Exports the subnet ID
     Value: !Ref SubnetPrivadaAZ1
