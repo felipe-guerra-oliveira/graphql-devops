@@ -1,4 +1,4 @@
-aws cloudformation create-stack --stack-name graphql-project-ecs \
+aws cloudformation create-stack --stack-name graphql-project-elb \
   --template-body file://cloudformation.yml \
   --parameters file://params.json \
   --on-failure DELETE \

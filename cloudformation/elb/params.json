@@ -1,0 +1,5 @@
+[
+    {"ParameterKey": "GraphQLALBName",                        "ParameterValue": "graphql-load-balancer"},
+    {"ParameterKey": "GraphQLALBSecurityGroup",               "ParameterValue": "graphql-alb-security-group"},
+    {"ParameterKey": "ContainerPort",                         "ParameterValue": "8080"}
+]

@@ -10,12 +10,6 @@ Parameters:
   ECSClusterService:
     Type: String
 
-  GraphQLALBName:
-    Type: String
-
-  GraphQLALBSecurityGroup:
-    Type: String
-
   GraphQLECSSecurityGroup:
     Type: String
 
@@ -27,6 +21,9 @@ Parameters:
 
   ContainerPort:
     Type: Number
+
+  ImageUri:
+    Type: String
 
 Resources:
   ECSCluster:
@@ -42,171 +39,107 @@ Resources:
         - Key: Project
           Value: GraphQL
 
-  GraphQLAppLoadBalancingSG:
+  GraphQLECSSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
       VpcId: !ImportValue MinhaVPC
-      GroupName: !Ref GraphQLALBSecurityGroup
-      GroupDescription: "GraphQL Load Balancer Security Group"
+      GroupName: !Ref GraphQLECSSecurityGroup
+      GroupDescription: "GraphQL ECS Security Group"
       SecurityGroupIngress:
         - CidrIp: 10.0.0.1/16
           FromPort: 80
-          ToPort: 80
+          ToPort: 8080
           IpProtocol: tcp
       Tags:
         - Key: Project
           Value: GraphQL
         - Key: Name
-          Value: "sg-alb-graphql"
+          Value: "sg-ecs-graphql"
 
-  GraphQLAppLoadBalancing:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+  LogGroup:
+    Type: AWS::Logs::LogGroup
     Properties:
-      Name: !Ref GraphQLALBName
-      Type: application
-      Scheme: internal
-      IpAddressType: ipv4
-      SecurityGroups:
-        - !Ref GraphQLAppLoadBalancingSG
-      Subnets:
-        - !ImportValue SubnetPrivadaA
-        - !ImportValue SubnetPrivadaB
-      Tags:
-        - Key: Project
-          Value: GraphQL
+      LogGroupName: graphql-log-group
+      RetentionInDays: 1
 
-  GraphQLALBListener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
+  GraphQLClusterService:
+    Type: AWS::ECS::Service
     Properties:
-      LoadBalancerArn: !Ref GraphQLAppLoadBalancing
-      Protocol: HTTP
-      Port: 80
-      DefaultActions:
-        - Type: redirect
-          Order: 50000
-          RedirectConfig:
-            StatusCode: HTTP_301
-            Protocol: HTTP
-            Port: "8080"
-            Host: "#{host}"
-            Path: "/#{path}"
-            Query: "#{query}"
+      ServiceName: !Ref ECSClusterService
+      LaunchType: FARGATE
+      PlatformVersion: "1.4.0"
+      Cluster: !Ref ECSCluster
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 60
+      TaskDefinition: !Ref TaskDefinition
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      LoadBalancers:
+        - ContainerName: !Ref AWS::StackName
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !ImportValue GraphQLTargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          Subnets:
+            - !ImportValue SubnetPrivadaA
+            - !ImportValue SubnetPrivadaB
+          SecurityGroups:
+            - !Ref GraphQLECSSG
 
-  GraphQLTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  # Task Definition
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
     Properties:
-      VpcId: !ImportValue MinhaVPC
-      Port: !Ref ContainerPort
-      Protocol: HTTP
-      TargetType: "ip"
-      HealthCheckIntervalSeconds: 10
-      HealthyThresholdCount: 4
-      HealthCheckPath: "/health"
-      Matcher:
-        HttpCode: "200-299,401,404"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: !Ref CpuTask
+      Memory: !Ref MemoryTask
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      ContainerDefinitions:
+        - Name: !Ref AWS::StackName
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ImageUri}"
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref LogGroup
+              awslogs-stream-prefix: "service"
 
-  GraphQLALBListenerRule:
-    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+  TaskRole:
+    Type: AWS::IAM::Role
     Properties:
-      ListenerArn: !Ref GraphQLALBListener
-      Priority: 1000
-      Actions:
-        - Type: forward
-          TargetGroupArn: !Ref GraphQLTargetGroup
-      Conditions:
-        - Field: path-pattern
-          Values: 
-            - "/graphql/*"
+      Path: "/graphql/ecs/"
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "ecs-tasks.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
 
-  # GraphQLECSSG:
-  #   Type: AWS::EC2::SecurityGroup
-  #   Properties:
-  #     VpcId: !ImportValue MinhaVPC
-  #     GroupName: !Ref GraphQLECSSecurityGroup
-  #     GroupDescription: "GraphQL ECS Security Group"
-  #     SecurityGroupIngress:
-  #       - CidrIp: 10.0.0.1/16
-  #         FromPort: 80
-  #         ToPort: 8080
-  #         IpProtocol: tcp
-  #     Tags:
-  #       - Key: Project
-  #         Value: GraphQL
-  #       - Key: Name
-  #         Value: "sg-ecs-graphql"
-
-  # GraphQLClusterService:
-  #   Type: AWS::ECS::Service
-  #   Properties:
-  #     ServiceName: !Ref ECSClusterService
-  #     LaunchType: FARGATE
-  #     PlatformVersion: "1.4.0"
-  #     Cluster: !Ref ECSCluster
-  #     DesiredCount: 1
-  #     HealthCheckGracePeriodSeconds: 60
-  #     TaskDefinition: !Ref TaskDefinition
-  #     DeploymentConfiguration:
-  #       MaximumPercent: 200
-  #       MinimumHealthyPercent: 100
-  #     LoadBalancers:
-  #       - ContainerName: !Ref AWS::StackName
-  #         ContainerPort: !Ref ContainerPort
-  #         TargetGroupArn: !Ref GraphQLTargetGroup
-  #     NetworkConfiguration:
-  #       AwsvpcConfiguration:
-  #         AssignPublicIp: DISABLED
-  #         Subnets:
-  #           - !ImportValue SubnetPrivadaA
-  #           - !ImportValue SubnetPrivadaB
-  #         SecurityGroups:
-  #           - !Ref GraphQLECSSG
-
-  # # Task Definition
-  # TaskDefinition:
-  #   Type: AWS::ECS::TaskDefinition
-  #   Properties:
-  #     NetworkMode: "awsvpc"
-  #     RequiresCompatibilities:
-  #       - FARGATE
-  #     Cpu: !Ref CpuTask
-  #     Memory: !Ref MemoryTask
-  #     TaskRoleArn: !GetAtt TaskRole.Arn
-  #     ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
-  #     ContainerDefinitions:
-  #       - Name: !Ref AWS::StackName
-  #         Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/"
-  #         PortMappings:
-  #           - ContainerPort: !Ref ContainerPort
-
-  # TaskRole:
-  #   Type: AWS::IAM::Role
-  #   Properties:
-  #     Path: "/graphql/ecs/"
-  #     AssumeRolePolicyDocument:
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             Service:
-  #               - "ecs-tasks.amazonaws.com"
-  #           Action:
-  #             - "sts:AssumeRole"
-
-  # TaskExecutionRole:
-  #   Type: AWS::IAM::Role
-  #   Properties:
-  #     Path: "/graphql/ecs/"
-  #     AssumeRolePolicyDocument:
-  #       Version: 2012-10-17
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             Service:
-  #               - "ec2.amazonaws.com"
-  #               - "ecs-tasks.amazonaws.com"
-  #           Action:
-  #             - "sts:AssumeRole"
-  #     ManagedPolicyArns:
-  #       - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: "/graphql/ecs/"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+                - "ecs-tasks.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
 
 Outputs:
   ECSClusterArn:

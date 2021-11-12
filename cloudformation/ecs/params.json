@@ -1,11 +1,9 @@
 [
     {"ParameterKey": "ECSClusterName",                        "ParameterValue": "graphql-ecs-cluster"},
     {"ParameterKey": "ECSClusterService",                     "ParameterValue": "graphql-backend-service"},
-    {"ParameterKey": "GraphQLALBName",                        "ParameterValue": "graphql-load-balancer"},
-    {"ParameterKey": "GraphQLALBSecurityGroup",               "ParameterValue": "graphql-alb-security-group"},
     {"ParameterKey": "GraphQLECSSecurityGroup",               "ParameterValue": "graphql-ecs-security-group"},
     {"ParameterKey": "CpuTask",                               "ParameterValue": "512"},
     {"ParameterKey": "MemoryTask",                            "ParameterValue": "1024"},
-    {"ParameterKey": "ContainerPort",                         "ParameterValue": "8080"}
-
+    {"ParameterKey": "ContainerPort",                         "ParameterValue": "8080"},
+    {"ParameterKey": "ImageUri",                              "ParameterValue": "graphql/backend/api-registry:latest"}
 ]

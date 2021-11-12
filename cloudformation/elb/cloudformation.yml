@@ -1,0 +1,103 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Template CF para construir a infraestrura
+  do ECS Cluster
+Parameters:
+  ContainerPort:
+    Type: Number
+
+  GraphQLALBName:
+    Type: String
+
+  GraphQLALBSecurityGroup:
+    Type: String
+
+Resources:
+  GraphQLAppLoadBalancingSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !ImportValue MinhaVPC
+      GroupName: !Ref GraphQLALBSecurityGroup
+      GroupDescription: "GraphQL Load Balancer Security Group"
+      SecurityGroupIngress:
+        - CidrIp: 10.0.0.1/16
+          FromPort: 80
+          ToPort: 80
+          IpProtocol: tcp
+      Tags:
+        - Key: Project
+          Value: GraphQL
+        - Key: Name
+          Value: "sg-alb-graphql"
+
+  GraphQLAppLoadBalancing:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Ref GraphQLALBName
+      Type: application
+      Scheme: internal
+      IpAddressType: ipv4
+      SecurityGroups:
+        - !Ref GraphQLAppLoadBalancingSG
+      Subnets:
+        - !ImportValue SubnetPrivadaA
+        - !ImportValue SubnetPrivadaB
+      Tags:
+        - Key: Project
+          Value: GraphQL
+
+  GraphQLALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref GraphQLAppLoadBalancing
+      Protocol: HTTP
+      Port: 80
+      DefaultActions:
+        - Type: redirect
+          Order: 50000
+          RedirectConfig:
+            StatusCode: HTTP_301
+            Protocol: HTTP
+            Port: "8080"
+            Host: "#{host}"
+            Path: "/#{path}"
+            Query: "#{query}"
+
+  GraphQLTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !ImportValue MinhaVPC
+      Port: !Ref ContainerPort
+      Protocol: HTTP
+      TargetType: "ip"
+      HealthCheckIntervalSeconds: 10
+      HealthyThresholdCount: 4
+      HealthCheckPath: "/health"
+      Matcher:
+        HttpCode: "200-299,401,404"
+
+  GraphQLALBListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref GraphQLALBListener
+      Priority: 1000
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref GraphQLTargetGroup
+      Conditions:
+        - Field: path-pattern
+          Values: 
+            - "/graphql/*"
+
+Outputs:
+  GraphQLApplicationLoadBalancer:
+    Description: ARN of the GraphQL Load Balancer
+    Value: !Ref GraphQLAppLoadBalancing
+
+  TargetGroup:
+    Description: GraphQLTargetGroup ARN
+    Value: !Ref GraphQLTargetGroup
+    Export:
+      Name: GraphQLTargetGroup
+  

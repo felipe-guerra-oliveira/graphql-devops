@@ -1,7 +1,6 @@
-aws cloudformation create-stack --stack-name graphql-project-ecs \
+aws cloudformation create-stack --stack-name graphql-project-ecr \
   --template-body file://cloudformation.yml \
   --parameters file://params.json \
   --on-failure DELETE \
-  --capabilities CAPABILITY_IAM \
   --profile devops \
   --region us-east-1
